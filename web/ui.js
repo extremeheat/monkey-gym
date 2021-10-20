@@ -82,7 +82,17 @@ if (playersAt[i]) {
     for (const player of this.players) {
       ctx.fillStyle = player.color;
       let m = ctx.measureText('🐒')
-      ctx.fillText('🐒', player.x * TILE_SIZE - (m.width/4), player.y * TILE_SIZE + m.actualBoundingBoxAscent);
+
+      if (player.facing == 'left') {
+        ctx.fillText('🐒', player.x * TILE_SIZE - (m.width/4), player.y * TILE_SIZE + m.actualBoundingBoxAscent);
+      } else {
+        ctx.save();
+        // Multiply the y value by -1 to flip vertically
+        ctx.scale(-1, 1);
+        ctx.fillText('🐒', -player.x * TILE_SIZE - (m.width/4), player.y * TILE_SIZE + m.actualBoundingBoxAscent);
+        ctx.restore();
+      }
+
       // ctx.fillRect(player.x * TILE_SIZE, player.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
 
@@ -105,6 +115,8 @@ class Player {
   }
 
   isGrounded = false
+  velocityY = 0
+  jumpTicks = 0
 
   tick() { 
     // if (this.env.getTile(Math.floor(this.y), Math.floor(this.y))) {
@@ -115,10 +127,27 @@ class Player {
     // this.env.ctx.fillRect(player.x * TILE_SIZE, player.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     if (this.isGrounded !== isGrounded) console.log('Grounded', isGrounded)
 
-    if (isGrounded && downedControls.Jump) {
-      this.y -= this.gravity
+    if (this.jumpTicks) {
+      this.jumpTicks--
+      this.y -= this.velocityY
+      // console.log(1)
+    } else if (downedControls.Jump && isGrounded) {
+      if (this.jumpTicks == 0) {
+        this.velocityY = 0.15
+        this.jumpTicks = 10
+      }
     } else if (!isGrounded) {
       this.y += this.gravity
+      // console.log(3)
+    }
+    
+    if (downedControls.Left) {
+      // console.log(4)
+      this.x -= 0.15
+      this.facing = 'left'
+    } else if (downedControls.Right) {
+      this.x += 0.15
+      this.facing = 'right'
     }
 
     this.isGrounded = isGrounded
@@ -135,9 +164,8 @@ class Game {
     console.log(w)
 
     this.terrain = new Terrain(w, h);
-    this.terrain.players = [
-      new Player(this.terrain, 19, 19, 0.1),
-    ]
+    this.player = new Player(this.terrain, 19, 19, 0.1)
+    this.terrain.players = [this.player]
   }
 
   start() {
@@ -187,9 +215,6 @@ class Game {
         this.ctx.fillText(m, this.canvas.width - rightOffset + (70 * x), 60 + (y * 20));
       }
     }
-    // this.ctx.fillText('JUMP   BREAK   USE', this.canvas.width - rightOffset, 80);
-    // this.ctx.fillText('LEFT   PLACE   DROP', this.canvas.width - rightOffset, 100);
-    // this.ctx.fillText('RIGHT  ATTACK  PICK[n]', this.canvas.width - rightOffset, 120);
   }
 
   drawPlayer() {
@@ -208,12 +233,12 @@ class Game {
     this.ctx.fillText('💖 20', 10, 40);
     this.ctx.fillText('🍒 10', 140, 40);
     this.ctx.fillText('💧 10', 140 + 140, 40);
-    this.ctx.fillText('💲 10.0', 140 + 140 + 140, 40);
+    this.ctx.fillText('💲 ' + this.player.isGrounded, 140 + 140 + 140, 40);
     this.ctx.fillText('👟', 140 + 140 + 140 + 140, 34);
-    this.ctx.fillText('20', 140 + 140 + 140 + 140 + 54, 40);
+    this.ctx.fillText(this.player.y, 140 + 140 + 140 + 140 + 54, 40);
     this.ctx.font = `bold 20px 'Cascadia Code'`;
     this.ctx.fillStyle = '#1f1f1f';
-    this.ctx.fillText('m/ms', 560 + 100, 38);
+    // this.ctx.fillText('m/ms', 560 + 100, 38);
 
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -276,7 +301,7 @@ window.addEventListener('resize', () => {
 let down = new Set()
 
 window.addEventListener('keydown', e => {
-  console.log(e.code)
+  // console.log(e.code)
   down.add(e.code)
 
   downedControls = {}
@@ -291,13 +316,13 @@ window.addEventListener('keydown', e => {
   if (down.has('KeyF')) downedControls['Break'] = true
   if (down.has('KeyG')) downedControls['Place'] = true
   if (down.has('Space')) downedControls['Attack'] = true
-  console.log(downedControls)
+  // console.log(downedControls)
 
   e.preventDefault()
 })
 
 window.addEventListener('keyup', e => {
-  console.log('up', e.code)
+  // console.log('up', e.code)
   down.delete(e.code)
   if (e.code == ('ArrowUp')) downedControls['Jump'] = false
   if (e.code == ('ArrowLeft')) downedControls['Left'] = false
